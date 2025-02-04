@@ -18,6 +18,9 @@ def resource_path(relative_path):
         base_path = os.path.abspath(".")
     return os.path.join(base_path, relative_path)
 
+def format_currency(value):
+    return "{:,.2f}".format(value).replace(",", "X").replace(".", ",").replace("X", ".")
+
 config = configparser.ConfigParser()
 config.read('diario.ini')
 
@@ -35,12 +38,15 @@ output_pdf = config['General']['PathSalida']
 name_title = config['Titulos']['Name']
 main_title = "pagina inicial"
 
+transporte_debe = 0.0
+transporte_haber = 0.0
+
 # Leer archivos DBF
-headers = pd.DataFrame(iter(DBF(header_file, load=True)))
-details = pd.DataFrame(iter(DBF(detail_file, load=True)))
+headers = pd.DataFrame(iter(DBF(header_file, load=True, encoding='latin1')))
+details = pd.DataFrame(iter(DBF(detail_file, load=True, encoding='latin1')))
 
 # Depuración: Ver contenido de los DataFrames
-# Reemplazar valores NaN en 'ASIENTO' por un valor predeterminado (por ejemplo, 0)
+headers['FECHA_ASI'] = pd.to_datetime(headers['FECHA_ASI'], format='%Y-%m-%d').dt.strftime('%d-%m-%Y')
 details['ASIENTO'] = details['ASIENTO'].fillna(0).astype(int)
 
 # Asegurarnos que 'ASIENTO' de headers sea un entero
@@ -62,7 +68,7 @@ def draw_page_number(c, page_count):
     c.drawString(50, height - 65, main_title)
     c.setFont("Courier", 11)
     c.drawString(475, height - 65, f"Hoja Nº {page_count}")
-    c.line(50, height - 90, width - 50, height - 90)
+    c.line(50, height - 85, width - 50, height - 85)
     c.setFont("Courier", 9)
 
 # Línea decorativa debajo del título
@@ -70,7 +76,7 @@ c.setStrokeColor("black")
 c.setLineWidth(1)
 
 # Espaciado después del título
-y_position = height - 90
+y_position = height - 70
 
 # Subtítulos de columnas con línea debajo
 c.setFont("Courier", 9)
@@ -99,15 +105,15 @@ for _, header in headers.iterrows():
         
         # Redibujar subtítulos en la nueva página
         c.setFont("Courier", 9)
-        c.drawString(50, height - 80, "CUENTA")
-        c.drawString(100, height - 80, "DESCRIPCIÓN")
-        c.drawString(230, height - 80, "DETALLE")
-        c.drawString(400, height - 80, "DEBE")
-        c.drawString(480, height - 80, "HABER")
+        c.drawString(50, height - 70, "CUENTA")
+        c.drawString(100, height - 70, "DESCRIPCIÓN")
+        c.drawString(230, height - 70, "DETALLE")
+        c.drawString(400, height - 70, "DEBE")
+        c.drawString(480, height - 70, "HABER")
         
         # Línea debajo de los subtítulos con separación
-        c.line(50, height - 85, width - 50, height - 85)
-        y_position = height - 90
+        c.line(50, height - 70, width - 50, height - 70)
+        y_position = height - 70
 
         # Dibujar el número de página en la nueva página
         draw_page_number(c, page_count)
@@ -116,7 +122,7 @@ for _, header in headers.iterrows():
     c.setFont("Courier-Bold", 9)
     c.drawString(50, y_position, f"ASIENTO N°: {header['ASIENTO']}     FECHA: {header['FECHA_ASI']}     DETALLE: {header['DETALLE']}")
     
-    y_position -= 20
+    y_position -= 10
 
     # Filtrar detalles correspondientes a este asiento
     asiento_details = details[details['ASIENTO'] == header['ASIENTO']]  
@@ -143,8 +149,8 @@ for _, header in headers.iterrows():
             # Dibujar el número de página en la nueva página
             draw_page_number(c, page_count)
             c.setFont("Courier-Bold", 9)
-            c.drawString(50, y_position-25, f"ASIENTO N°: {header['ASIENTO']}     FECHA: {header['FECHA_ASI']}     DETALLE: {header['DETALLE']}")
-            y_position-=45
+            c.drawString(50, y_position, f"ASIENTO N°: {header['ASIENTO']}     FECHA: {header['FECHA_ASI']}     DETALLE: {header['DETALLE']}")
+            y_position-=10
 
 
         c.setFont("Courier", 9)
@@ -155,18 +161,26 @@ for _, header in headers.iterrows():
         if(float(detail['DEBE']) == 0.0):
             c.drawString(400, y_position, '')
         else:
-            c.drawString(400, y_position, str(detail['DEBE']))
+            c.drawString(400, y_position, format_currency(float(detail['DEBE'])))
+            transporte_debe+=float(detail['DEBE'])
 
         if(float(detail['HABER']) == 0.0):
             c.drawString(480, y_position, '')
         else:
-            c.drawString(480, y_position, str(detail['HABER']))
+            c.drawString(480, y_position, format_currency(float(detail['HABER'])))
+            transporte_haber+=float(detail['HABER'])
 
         y_position -= 10
 
     c.line(50, y_position - 1, width - 50, y_position - 1)
 
-    y_position -= 30  # Espaciado entre asientos
+    y_position -= 20  # Espaciado entre asientos
+
+c.drawString(275, y_position-25, "Transporte")
+
+c.drawString(345, y_position-25, format_currency(float(str(transporte_debe))))
+
+c.drawString(450, y_position-25, format_currency(float(str(transporte_haber))))
 
 # Guardar el PDF
 c.save()
