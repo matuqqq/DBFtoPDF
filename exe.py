@@ -45,9 +45,6 @@ transporte_haber = 0.0
 headers = pd.DataFrame(iter(DBF(header_file, load=True, encoding='latin1')))
 details = pd.DataFrame(iter(DBF(detail_file, load=True, encoding='latin1')))
 
-# Convertir la columna 'FECHA_ASI' a formato datetime y luego cambiar el formato a 'dd-mm-aaaa'
-headers['FECHA_ASI'] = pd.to_datetime(headers['FECHA_ASI'], format='%Y-%m-%d').dt.strftime('%d-%m-%Y')
-
 # Depuración: Ver contenido de los DataFrames
 headers['FECHA_ASI'] = pd.to_datetime(headers['FECHA_ASI'], format='%Y-%m-%d').dt.strftime('%d-%m-%Y')
 details['ASIENTO'] = details['ASIENTO'].fillna(0).astype(int)
@@ -65,13 +62,12 @@ page_count = int(input("Ingrese numero de hoja: "))
 
 # Función para dibujar el número de página
 def draw_page_number(c, page_count):
-    c.line(50, height - 70, width - 50, height - 70)
     c.setFont("Courier-Bold", 11)
-    c.drawString(50, height - 50, name_title)
-    c.drawString(50, height - 65, main_title)
+    c.drawString(50, height - 10, name_title)
+    c.drawString(50, height - 25, main_title)
     c.setFont("Courier", 11)
-    c.drawString(475, height - 65, f"Hoja Nº {page_count}")
-    c.line(50, height - 85, width - 50, height - 85)
+    c.drawString(475, height - 25, f"Hoja Nº {page_count}")
+    c.line(30, height - 45, width - 30, height - 45)
     c.setFont("Courier", 9)
 
 # Línea decorativa debajo del título
@@ -79,17 +75,17 @@ c.setStrokeColor("black")
 c.setLineWidth(1)
 
 # Espaciado después del título
-y_position = height - 70
+y_position = height - 30
 
 # Subtítulos de columnas con línea debajo
 c.setFont("Courier", 9)
 subtitles_y = y_position
 
-c.drawString(50, height - 80, "CUENTA")
-c.drawString(100, height - 80, "DESCRIPCIÓN")
-c.drawString(230, height - 80, "DETALLE")
-c.drawString(400, height - 80, "DEBE")
-c.drawString(480, height - 80, "HABER")
+c.drawString(30, height - 40, "CUENTA")
+c.drawString(80, height - 40, "DESCRIPCIÓN")
+c.drawString(230, height - 40, "DETALLE")
+c.drawString(400, height - 40, "DEBE")
+c.drawString(480, height - 40, "HABER")
 
 # Línea debajo de los subtítulos con separación
 y_position -= 35
@@ -107,15 +103,15 @@ for _, header in headers.iterrows():
         
         # Redibujar subtítulos en la nueva página
         c.setFont("Courier", 9)
-        c.drawString(50, height - 70, "CUENTA")
-        c.drawString(100, height - 70, "DESCRIPCIÓN")
-        c.drawString(230, height - 70, "DETALLE")
-        c.drawString(400, height - 70, "DEBE")
-        c.drawString(480, height - 70, "HABER")
+        c.drawString(30, height - 40, "CUENTA")
+        c.drawString(80, height - 40, "DESCRIPCIÓN")
+        c.drawString(230, height - 40, "DETALLE")
+        c.drawString(400, height - 40, "DEBE")
+        c.drawString(480, height - 40, "HABER")
         
         # Línea debajo de los subtítulos con separación
-        c.line(50, height - 70, width - 50, height - 70)
-        y_position = height - 70
+        c.line(30, height - 45, width - 30, height - 45)
+        y_position = height - 40
 
         # Dibujar el número de página en la nueva página
         draw_page_number(c, page_count)
@@ -132,21 +128,21 @@ for _, header in headers.iterrows():
     # Escribir los detalles
     c.setFont("Courier", 9)
     for _, detail in asiento_details.iterrows():
-        if y_position < 50:  # Salto de página si llega al final
+        if y_position < 5:  # Salto de página si llega al final
             c.showPage()
             page_count += 1  # Incrementar el contador de páginas
-            y_position = height - 50
+            y_position = height - 10
 
             # Redibujar subtítulos en la nueva página
             c.setFont("Courier", 9)
-            c.drawString(50, height - 80, "CUENTA")
-            c.drawString(100, height - 80, "DESCRIPCIÓN")
-            c.drawString(230, height - 80, "DETALLE")
-            c.drawString(400, height - 80, "DEBE")
-            c.drawString(480, height - 80, "HABER")
+            c.drawString(30, height - 40, "CUENTA")
+            c.drawString(80, height - 40, "DESCRIPCIÓN")
+            c.drawString(230, height - 40, "DETALLE")
+            c.drawString(400, height - 40, "DEBE")
+            c.drawString(480, height - 40, "HABER")
 
             # Línea debajo de los subtítulos con separación
-            y_position = height - 100
+            y_position = height - 60
 
             # Dibujar el número de página en la nueva página
             draw_page_number(c, page_count)
@@ -156,8 +152,8 @@ for _, header in headers.iterrows():
 
 
         c.setFont("Courier", 9)
-        c.drawString(50, y_position, str(detail['CUENTA']))
-        c.drawString(95, y_position, str(detail['DESCRIP']))
+        c.drawString(30, y_position, str(detail['CUENTA']))
+        c.drawString(75, y_position, str(detail['DESCRIP']))
         c.drawString(230, y_position, str(detail['DETALLE']))
 
         if(float(detail['DEBE']) == 0.0):
