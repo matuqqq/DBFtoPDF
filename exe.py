@@ -33,11 +33,14 @@ detail_file = config['General']['PathDBF'] + '\\LIBPDFD.dbf'
 output_pdf = config['General']['PathSalida']
 
 name_title = config['Titulos']['Name']
-main_title = "pagina inicial"
+main_title = "Libro Diario"
 
 # Leer archivos DBF
 headers = pd.DataFrame(iter(DBF(header_file, load=True)))
 details = pd.DataFrame(iter(DBF(detail_file, load=True)))
+
+# Convertir la columna 'FECHA_ASI' a formato datetime y luego cambiar el formato a 'dd-mm-aaaa'
+headers['FECHA_ASI'] = pd.to_datetime(headers['FECHA_ASI'], format='%Y-%m-%d').dt.strftime('%d-%m-%Y')
 
 # Depuración: Ver contenido de los DataFrames
 # Reemplazar valores NaN en 'ASIENTO' por un valor predeterminado (por ejemplo, 0)
@@ -70,7 +73,7 @@ c.setStrokeColor("black")
 c.setLineWidth(1)
 
 # Espaciado después del título
-y_position = height - 90
+y_position = height - 70
 
 # Subtítulos de columnas con línea debajo
 c.setFont("Courier", 9)
@@ -83,7 +86,6 @@ c.drawString(400, height - 80, "DEBE")
 c.drawString(480, height - 80, "HABER")
 
 # Línea debajo de los subtítulos con separación
-
 y_position -= 35
 
 draw_page_number(c, page_count)
@@ -144,8 +146,7 @@ for _, header in headers.iterrows():
             draw_page_number(c, page_count)
             c.setFont("Courier-Bold", 9)
             c.drawString(50, y_position-25, f"ASIENTO N°: {header['ASIENTO']}     FECHA: {header['FECHA_ASI']}     DETALLE: {header['DETALLE']}")
-            y_position-=45
-
+            y_position -= 45
 
         c.setFont("Courier", 9)
         c.drawString(50, y_position, str(detail['CUENTA']))
