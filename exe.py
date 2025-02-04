@@ -6,6 +6,8 @@ from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.pdfmetrics import stringWidth
+
 import configparser
 
 # Función para obtener la ruta de los archivos dentro del ejecutable empaquetado
@@ -63,11 +65,11 @@ page_count = int(input("Ingrese numero de hoja: "))
 # Función para dibujar el número de página
 def draw_page_number(c, page_count):
     c.setFont("Courier-Bold", 11)
-    c.drawString(50, height - 10, name_title)
-    c.drawString(50, height - 25, main_title)
+    c.drawString(30, height - 20, name_title)
+    c.drawString(30, height - 35, main_title)
     c.setFont("Courier", 11)
-    c.drawString(475, height - 25, f"Hoja Nº {page_count}")
-    c.line(30, height - 45, width - 30, height - 45)
+    c.drawString(475, height - 35, f"Hoja Nº {page_count}")
+    c.line(30, height - 55, width - 30, height - 55)
     c.setFont("Courier", 9)
 
 # Línea decorativa debajo del título
@@ -81,11 +83,11 @@ y_position = height - 30
 c.setFont("Courier", 9)
 subtitles_y = y_position
 
-c.drawString(30, height - 40, "CUENTA")
-c.drawString(80, height - 40, "DESCRIPCIÓN")
-c.drawString(230, height - 40, "DETALLE")
-c.drawString(400, height - 40, "DEBE")
-c.drawString(480, height - 40, "HABER")
+c.drawString(30, height - 50, "CUENTA")
+c.drawString(80, height - 50, "DESCRIPCIÓN")
+c.drawString(230, height - 50, "DETALLE")
+c.drawString(400, height - 50, "DEBE")
+c.drawString(480, height - 50, "HABER")
 
 # Línea debajo de los subtítulos con separación
 y_position -= 35
@@ -95,32 +97,11 @@ draw_page_number(c, page_count)
 # Iterar sobre cada asiento en la cabecera
 for _, header in headers.iterrows():
     c.setFont("Courier", 9)
-    
-    if y_position < 100:  # Salto de página si llega al final
-        c.showPage()
-        page_count += 1  # Incrementar el contador de páginas
-        y_position = height - 50
-        
-        # Redibujar subtítulos en la nueva página
-        c.setFont("Courier", 9)
-        c.drawString(30, height - 40, "CUENTA")
-        c.drawString(80, height - 40, "DESCRIPCIÓN")
-        c.drawString(230, height - 40, "DETALLE")
-        c.drawString(400, height - 40, "DEBE")
-        c.drawString(480, height - 40, "HABER")
-        
-        # Línea debajo de los subtítulos con separación
-        c.line(30, height - 45, width - 30, height - 45)
-        y_position = height - 40
-
-        # Dibujar el número de página en la nueva página
-        draw_page_number(c, page_count)
-
     # Escribir cabecera del asiento
     c.setFont("Courier-Bold", 9)
-    c.drawString(50, y_position, f"ASIENTO N°: {header['ASIENTO']}     FECHA: {header['FECHA_ASI']}     DETALLE: {header['DETALLE']}")
+    c.drawString(30, y_position, f"ASIENTO N°: {header['ASIENTO']}     FECHA: {header['FECHA_ASI']}     DETALLE: {header['DETALLE']}")
     
-    y_position -= 10
+    y_position -= 20
 
     # Filtrar detalles correspondientes a este asiento
     asiento_details = details[details['ASIENTO'] == header['ASIENTO']]  
@@ -128,27 +109,27 @@ for _, header in headers.iterrows():
     # Escribir los detalles
     c.setFont("Courier", 9)
     for _, detail in asiento_details.iterrows():
-        if y_position < 5:  # Salto de página si llega al final
+        if y_position < 10:  # Salto de página si llega al final
             c.showPage()
             page_count += 1  # Incrementar el contador de páginas
-            y_position = height - 10
+            y_position = height - 20
 
             # Redibujar subtítulos en la nueva página
             c.setFont("Courier", 9)
-            c.drawString(30, height - 40, "CUENTA")
-            c.drawString(80, height - 40, "DESCRIPCIÓN")
-            c.drawString(230, height - 40, "DETALLE")
-            c.drawString(400, height - 40, "DEBE")
-            c.drawString(480, height - 40, "HABER")
+            c.drawString(30, height - 70, "CUENTA")
+            c.drawString(80, height - 70, "DESCRIPCIÓN")
+            c.drawString(230, height - 70, "DETALLE")
+            c.drawString(400, height - 70, "DEBE")
+            c.drawString(480, height - 70, "HABER")
 
             # Línea debajo de los subtítulos con separación
-            y_position = height - 60
+            y_position = height - 70
 
             # Dibujar el número de página en la nueva página
             draw_page_number(c, page_count)
             c.setFont("Courier-Bold", 9)
-            c.drawString(50, y_position, f"ASIENTO N°: {header['ASIENTO']}     FECHA: {header['FECHA_ASI']}     DETALLE: {header['DETALLE']}")
-            y_position-=10
+            c.drawString(30, y_position+20, f"ASIENTO N°: {header['ASIENTO']}     FECHA: {header['FECHA_ASI']}     DETALLE: {header['DETALLE']}")
+            y_position-= 20
 
 
         c.setFont("Courier", 9)
@@ -156,21 +137,31 @@ for _, header in headers.iterrows():
         c.drawString(75, y_position, str(detail['DESCRIP']))
         c.drawString(230, y_position, str(detail['DETALLE']))
 
-        if(float(detail['DEBE']) == 0.0):
-            c.drawString(400, y_position, '')
+    # Alinear el DEBE a la derecha
+        if float(detail['DEBE']) == 0.0:
+            debe_text = ''
         else:
-            c.drawString(400, y_position, format_currency(float(detail['DEBE'])))
-            transporte_debe+=float(detail['DEBE'])
+            debe_text = format_currency(float(detail['DEBE']))
+            transporte_debe += float(detail['DEBE'])
 
-        if(float(detail['HABER']) == 0.0):
-            c.drawString(480, y_position, '')
+    # Calcular el ancho del texto del DEBE
+        debe_width = stringWidth(debe_text, "Courier", 9)
+        c.drawString(470 - debe_width, y_position, debe_text)  # Ajustar la posición x
+
+    # Alinear el HABER a la derecha
+        if float(detail['HABER']) == 0.0:
+            haber_text = ''
         else:
-            c.drawString(480, y_position, format_currency(float(detail['HABER'])))
-            transporte_haber+=float(detail['HABER'])
+            haber_text = format_currency(float(detail['HABER']))
+            transporte_haber += float(detail['HABER'])
 
+    # Calcular el ancho del texto del HABER
+        haber_width = stringWidth(haber_text, "Courier", 9)
+        c.drawString(550 - haber_width, y_position, haber_text)  # Ajustar la posición x
         y_position -= 10
 
-    c.line(50, y_position - 1, width - 50, y_position - 1)
+
+    c.line(30, y_position - 1, width - 30, y_position - 1)
 
     y_position -= 20  # Espaciado entre asientos
 
