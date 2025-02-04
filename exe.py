@@ -36,7 +36,7 @@ detail_file = config['General']['PathDBF'] + '\\LIBPDFD.dbf'
 output_pdf = config['General']['PathSalida']
 
 name_title = config['Titulos']['Name']
-main_title = "pagina inicial"
+main_title = "Libro Diario"
 
 transporte_debe = 0.0
 transporte_haber = 0.0
@@ -44,6 +44,9 @@ transporte_haber = 0.0
 # Leer archivos DBF
 headers = pd.DataFrame(iter(DBF(header_file, load=True, encoding='latin1')))
 details = pd.DataFrame(iter(DBF(detail_file, load=True, encoding='latin1')))
+
+# Convertir la columna 'FECHA_ASI' a formato datetime y luego cambiar el formato a 'dd-mm-aaaa'
+headers['FECHA_ASI'] = pd.to_datetime(headers['FECHA_ASI'], format='%Y-%m-%d').dt.strftime('%d-%m-%Y')
 
 # Depuración: Ver contenido de los DataFrames
 headers['FECHA_ASI'] = pd.to_datetime(headers['FECHA_ASI'], format='%Y-%m-%d').dt.strftime('%d-%m-%Y')
@@ -89,7 +92,6 @@ c.drawString(400, height - 80, "DEBE")
 c.drawString(480, height - 80, "HABER")
 
 # Línea debajo de los subtítulos con separación
-
 y_position -= 35
 
 draw_page_number(c, page_count)
