@@ -7,8 +7,8 @@ from reportlab.pdfgen import canvas
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.pdfmetrics import stringWidth
-
 import configparser
+import argparse
 
 # Función para obtener la ruta de los archivos dentro del ejecutable empaquetado
 def resource_path(relative_path):
@@ -23,154 +23,162 @@ def resource_path(relative_path):
 def format_currency(value):
     return "{:,.2f}".format(value).replace(",", "X").replace(".", ",").replace("X", ".")
 
-config = configparser.ConfigParser()
-config.read('diario.ini')
-
-# Registra las fuentes correctamente con las rutas adecuadas
-font_path_bold = resource_path('fonts/CourierPrime-Bold.ttf')
-font_path_regular = resource_path('fonts/CourierPrime-Regular.ttf')
-
-pdfmetrics.registerFont(TTFont("Courier-Bold", font_path_bold))
-pdfmetrics.registerFont(TTFont("Courier", font_path_regular))
-
-header_file = config['General']['PathDBF'] + '\\LIBPDFH.dbf'
-detail_file = config['General']['PathDBF'] + '\\LIBPDFD.dbf'
-output_pdf = config['General']['PathSalida']
-
-name_title = config['Titulos']['Name']
-main_title = "Libro Diario"
-
-transporte_debe = 0.0
-transporte_haber = 0.0
-
-# Leer archivos DBF
-headers = pd.DataFrame(iter(DBF(header_file, load=True, encoding='latin1')))
-details = pd.DataFrame(iter(DBF(detail_file, load=True, encoding='latin1')))
-
-# Depuración: Ver contenido de los DataFrames
-headers['FECHA_ASI'] = pd.to_datetime(headers['FECHA_ASI'], format='%Y-%m-%d').dt.strftime('%d-%m-%Y')
-details['ASIENTO'] = details['ASIENTO'].fillna(0).astype(int)
-
-# Asegurarnos que 'ASIENTO' de headers sea un entero
-headers['ASIENTO'] = headers['ASIENTO'].astype(int)
-
-# Comprobación de valores específicos
-# Crear el PDF
-c = canvas.Canvas(output_pdf, pagesize=letter)
-width, height = letter
-
-# Inicializar el contador de páginas
-page_count = int(input("Ingrese numero de hoja: ")) 
-
-# Función para dibujar el número de página
-def draw_page_number(c, page_count):
+def draw_page_number(c, page_count, name_title, main_title, width, height):
     c.setFont("Courier-Bold", 11)
     c.drawString(30, height - 20, name_title)
     c.drawString(30, height - 35, main_title)
     c.setFont("Courier", 11)
     c.drawString(475, height - 35, f"Hoja Nº {page_count}")
+    c.line(30, height - 40, width - 30, height - 40)
     c.line(30, height - 55, width - 30, height - 55)
     c.setFont("Courier", 9)
 
-# Línea decorativa debajo del título
-c.setStrokeColor("black")
-c.setLineWidth(1)
+def generate_pdf(header_file, detail_file, output_pdf, name_title, page_count):
+    config = configparser.ConfigParser()
+    config.read('diario.ini')
 
-# Espaciado después del título
-y_position = height - 30
+    # Registra las fuentes correctamente con las rutas adecuadas
+    font_path_bold = resource_path('fonts/CourierPrime-Bold.ttf')
+    font_path_regular = resource_path('fonts/CourierPrime-Regular.ttf')
 
-# Subtítulos de columnas con línea debajo
-c.setFont("Courier", 9)
-subtitles_y = y_position
+    pdfmetrics.registerFont(TTFont("Courier-Bold", font_path_bold))
+    pdfmetrics.registerFont(TTFont("Courier", font_path_regular))
 
-c.drawString(30, height - 50, "CUENTA")
-c.drawString(80, height - 50, "DESCRIPCIÓN")
-c.drawString(230, height - 50, "DETALLE")
-c.drawString(400, height - 50, "DEBE")
-c.drawString(480, height - 50, "HABER")
+    main_title = "Libro Diario"
 
-# Línea debajo de los subtítulos con separación
-y_position -= 35
+    transporte_debe = 0.0
+    transporte_haber = 0.0
 
-draw_page_number(c, page_count)
+    # Leer archivos DBF
+    headers = pd.DataFrame(iter(DBF(header_file, load=True, encoding='latin1')))
+    details = pd.DataFrame(iter(DBF(detail_file, load=True, encoding='latin1')))
 
-# Iterar sobre cada asiento en la cabecera
-for _, header in headers.iterrows():
+    # Depuración: Ver contenido de los DataFrames
+    headers['FECHA_ASI'] = pd.to_datetime(headers['FECHA_ASI'], format='%Y-%m-%d').dt.strftime('%d-%m-%Y')
+    details['ASIENTO'] = details['ASIENTO'].fillna(0).astype(int)
+
+    # Asegurarnos que 'ASIENTO' de headers sea un entero
+    headers['ASIENTO'] = headers['ASIENTO'].astype(int)
+
+    # Crear el PDF
+    c = canvas.Canvas(output_pdf, pagesize=letter)
+    width, height = letter
+
+    # Inicializar el contador de páginas
+    y_position = height - 30
+
+    # Subtítulos de columnas con línea debajo
     c.setFont("Courier", 9)
-    # Escribir cabecera del asiento
-    c.setFont("Courier-Bold", 9)
-    c.drawString(30, y_position, f"ASIENTO N°: {header['ASIENTO']}     FECHA: {header['FECHA_ASI']}     DETALLE: {header['DETALLE']}")
-    
-    y_position -= 20
+    subtitles_y = y_position
 
-    # Filtrar detalles correspondientes a este asiento
-    asiento_details = details[details['ASIENTO'] == header['ASIENTO']]  
+    c.drawString(30, height - 50, "CUENTA")
+    c.drawString(80, height - 50, "DESCRIPCIÓN")
+    c.drawString(230, height - 50, "DETALLE")
+    c.drawString(425, height - 50, "DEBE")
+    c.drawString(530, height - 50, "HABER")
 
-    # Escribir los detalles
-    c.setFont("Courier", 9)
-    for _, detail in asiento_details.iterrows():
-        if y_position < 10:  # Salto de página si llega al final
-            c.showPage()
-            page_count += 1  # Incrementar el contador de páginas
-            y_position = height - 20
+    # Línea debajo de los subtítulos con separación
+    y_position -= 35
 
-            # Redibujar subtítulos en la nueva página
-            c.setFont("Courier", 9)
-            c.drawString(30, height - 70, "CUENTA")
-            c.drawString(80, height - 70, "DESCRIPCIÓN")
-            c.drawString(230, height - 70, "DETALLE")
-            c.drawString(400, height - 70, "DEBE")
-            c.drawString(480, height - 70, "HABER")
+    draw_page_number(c, page_count, name_title, main_title, width, height)
 
-            # Línea debajo de los subtítulos con separación
-            y_position = height - 70
-
-            # Dibujar el número de página en la nueva página
-            draw_page_number(c, page_count)
-            c.setFont("Courier-Bold", 9)
-            c.drawString(30, y_position+20, f"ASIENTO N°: {header['ASIENTO']}     FECHA: {header['FECHA_ASI']}     DETALLE: {header['DETALLE']}")
-            y_position-= 20
-
-
+    # Iterar sobre cada asiento en la cabecera
+    for _, header in headers.iterrows():
         c.setFont("Courier", 9)
-        c.drawString(30, y_position, str(detail['CUENTA']))
-        c.drawString(75, y_position, str(detail['DESCRIP']))
-        c.drawString(230, y_position, str(detail['DETALLE']))
+        # Escribir cabecera del asiento
+        c.setFont("Courier-Bold", 9)
+        c.drawString(30, y_position, f"ASIENTO N°: {header['ASIENTO']}     FECHA: {header['FECHA_ASI']}     DETALLE: {header['DETALLE']}")
+        
+        y_position -= 20
 
-    # Alinear el DEBE a la derecha
-        if float(detail['DEBE']) == 0.0:
-            debe_text = ''
-        else:
-            debe_text = format_currency(float(detail['DEBE']))
-            transporte_debe += float(detail['DEBE'])
+        # Filtrar detalles correspondientes a este asiento
+        asiento_details = details[details['ASIENTO'] == header['ASIENTO']]  
 
-    # Calcular el ancho del texto del DEBE
-        debe_width = stringWidth(debe_text, "Courier", 9)
-        c.drawString(470 - debe_width, y_position, debe_text)  # Ajustar la posición x
+        # Escribir los detalles
+        c.setFont("Courier", 9)
+        for _, detail in asiento_details.iterrows():
+            if y_position < 10:  # Salto de página si llega al final
+                c.showPage()
+                page_count += 1  # Incrementar el contador de páginas
+                y_position = height - 20
 
-    # Alinear el HABER a la derecha
-        if float(detail['HABER']) == 0.0:
-            haber_text = ''
-        else:
-            haber_text = format_currency(float(detail['HABER']))
-            transporte_haber += float(detail['HABER'])
+                # Redibujar subtítulos en la nueva página
+                c.setFont("Courier", 9)
+                c.drawString(30, height - 50, "CUENTA")
+                c.drawString(80, height - 50, "DESCRIPCIÓN")
+                c.drawString(230, height - 50, "DETALLE")
+                c.drawString(425, height - 50, "DEBE")
+                c.drawString(530, height - 50, "HABER")
 
-    # Calcular el ancho del texto del HABER
-        haber_width = stringWidth(haber_text, "Courier", 9)
-        c.drawString(550 - haber_width, y_position, haber_text)  # Ajustar la posición x
-        y_position -= 10
+                # Línea debajo de los subtítulos con separación
+                y_position = height - 70
 
+                # Dibujar el número de página en la nueva página
+                draw_page_number(c, page_count, name_title, main_title, width, height)
+                c.setFont("Courier-Bold", 9)
+                c.drawString(30, y_position, f"ASIENTO N°: {header['ASIENTO']}     FECHA: {header['FECHA_ASI']}     DETALLE: {header['DETALLE']}")
+                y_position-= 20
 
-    c.line(30, y_position - 1, width - 30, y_position - 1)
+            c.setFont("Courier", 9)
+            c.drawString(30, y_position, str(detail['CUENTA']))
+            c.drawString(75, y_position, str(detail['DESCRIP']))
+            c.drawString(230, y_position, str(detail['DETALLE']))
 
-    y_position -= 20  # Espaciado entre asientos
+            # Alinear el DEBE a la derecha
+            if float(detail['DEBE']) == 0.0:
+                debe_text = ''
+            else:
+                debe_text = format_currency(float(detail['DEBE']))
+                transporte_debe += float(detail['DEBE'])
 
-c.drawString(275, y_position-25, "Transporte")
+            # Calcular el ancho del texto del DEBE
+            debe_width = stringWidth(debe_text, "Courier", 9)
+            c.drawString(470 - debe_width, y_position, debe_text)  # Ajustar la posición x
 
-c.drawString(345, y_position-25, format_currency(float(str(transporte_debe))))
+            # Alinear el HABER a la derecha
+            if float(detail['HABER']) == 0.0:
+                haber_text = ''
+            else:
+                haber_text = format_currency(float(detail['HABER']))
+                transporte_haber += float(detail['HABER'])
 
-c.drawString(450, y_position-25, format_currency(float(str(transporte_haber))))
+            # Calcular el ancho del texto del HABER
+            haber_width = stringWidth(haber_text, "Courier", 9)
+            c.drawString(570 - haber_width, y_position, haber_text)  # Ajustar la posición x
+            y_position -= 10
 
-# Guardar el PDF
-c.save()
-print(f"PDF generado en: {output_pdf}")
+        c.line(30, y_position - 1, width - 30, y_position - 1)
+        y_position -= 20  # Espaciado entre asientos
+
+    c.drawString(275, y_position+7, "Totales")
+
+    transporte_debe_text = format_currency(float(str(transporte_debe)))
+    transporte_debe_width = stringWidth(transporte_debe_text, "Courier", 9)
+    c.drawString(470 - transporte_debe_width, y_position+7, transporte_debe_text)
+
+    transporte_haber_text = format_currency(float(str(transporte_haber)))
+    transporte_haber_width = stringWidth(transporte_haber_text, "Courier", 9)
+    c.drawString(570 - transporte_haber_width, y_position+7, transporte_haber_text)
+
+    # Guardar el PDF
+    c.save()
+    print(f"PDF generado en: {output_pdf}")
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Generar PDF a partir de archivos DBF.")
+    parser.add_argument('-E', '--empresa', type=str, required=True, help='Nombre de la empresa')
+    parser.add_argument('-P', '--pagina', type=int, required=True, help='Número de página')
+
+    args = parser.parse_args()
+
+    # Configuración de rutas y nombres
+    config = configparser.ConfigParser()
+    config.read('diario.ini')
+
+    header_file = config['General']['PathDBF'] + '\\LIBPDFH.dbf'
+    detail_file = config['General']['PathDBF'] + '\\LIBPDFD.dbf'
+    output_pdf = config['General']['PathSalida']
+    name_title = args.empresa
+    page_count = args.pagina
+
+    generate_pdf(header_file, detail_file, output_pdf, name_title, page_count)
